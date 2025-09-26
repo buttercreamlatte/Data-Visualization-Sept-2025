@@ -1,4 +1,4 @@
-# Data Visualization Sept 2025
+# TEB3133 Data Visualization Sept 2025
 
 | Name                               | Student ID      | Course |
 | -----------------------------------| --------------- |--------
