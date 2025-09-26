@@ -1,0 +1,27 @@
+# iris_demo.py
+
+import streamlit as st
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Title
+st.title("Iris Dataset Demo with Streamlit 🌸")
+
+# Load dataset from online URL
+url = "https://gist.githubusercontent.com/netj/8836201/raw/iris.csv"
+df = pd.read_csv(url)
+
+# Display the dataset
+st.subheader("Iris Dataset Preview")
+st.dataframe(df.head())
+
+# Feature selection for histogram
+st.subheader("Histogram of a Feature")
+# exclude species column
+feature = st.selectbox("Select feature", df.columns[:-1])
+
+# Plot histogram
+fig, ax = plt.subplots()
+sns.histplot(df[feature], kde=True, ax=ax)
+st.pyplot(fig)
