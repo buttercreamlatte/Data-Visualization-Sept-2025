@@ -1,0 +1,74 @@
+import streamlit as st
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Sidebar Menu
+st.sidebar.title("Page Menu")
+page = st.sidebar.radio("Choose a page", ["🏠 Main Page", "🖼️ Picture Display", "📊 Data Visualization"])
+
+# Introduction Page
+if page == "🏠 Main Page":
+    st.title("🍓Sip into Strawberry Matcha Bliss")
+    st.write("Use the side menu to explore different features")
+    st.markdown("""
+    - 🖼️ Tap to see your Strawberry Matcha surprise.  
+    - 📊 Mix & Match your Strawberry Matcha stats with sliders and checkboxes.  
+    """)
+
+# Picture Display Page
+elif page == "🖼️ Picture Display":
+    st.title("🍓 Picture Display")
+    st.write("Click the button below to see a surprise picture!")
+
+    if st.button("Show Pictures"):
+        st.image(
+            "https://www.acozykitchen.com/wp-content/uploads/2025/03/StrawberryMatcha.jpg",
+            caption="🍓Strawberry + 🍵Matcha = Perfect Happiness!",
+            use_container_width=True
+        )
+
+        st.image(
+            "https://i.pinimg.com/1200x/d3/85/e0/d385e03b181639c9595c58eaa2d94264.jpg",
+            caption="Indulge in Strawberry Matcha Cheesecake bliss! 🌸🍵🍓",
+            use_container_width=True
+        )
+
+# Data Visualization Page
+elif page == "📊 Data Visualization":
+    st.title("🍓 Strawberry Matcha Treats Stats")
+
+    # Fixed dataset: lengths must match
+    data = {
+        'Items': ['Smoothie', 'Cheesecake', 'Parfait', 'Pudding', 'Donut'],
+        'Popularity': [18, 14, 12, 16, 10]
+    }
+    df = pd.DataFrame(data)
+
+    st.subheader("Customise Your Chart")
+    chart_type = st.radio(" ", ["Bar Chart", "Line Chart"])
+    multiplier = st.slider("Adjust Popularity Multiplier", 1, 5, 1)
+    show_values = st.checkbox("Show data values on chart")
+
+    df['Popularity'] = df['Popularity'] * multiplier
+
+    # Plot chart
+    fig, ax = plt.subplots(facecolor="#ffe4ec")  # strawberry pink background
+    if chart_type == "Bar Chart":
+        bars = ax.bar(df['Items'], df['Popularity'], color='#6a994e')  # matcha green
+        if show_values:
+            for bar in bars:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height(),
+                    str(bar.get_height()),
+                    ha='center',
+                    va='bottom',
+                    color="#d6336c"
+                )
+    else:  # Line Chart
+        ax.plot(df['Items'], df['Popularity'], marker='o', linestyle='-', color='#6a994e')
+        if show_values:
+            for i, val in enumerate(df['Popularity']):
+                ax.text(i, val, str(val), ha='center', va='bottom', color="#6a994e")
+
+    st.pyplot(fig)
