@@ -1,0 +1,80 @@
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load dataset
+file_path = '/Users/najwamahmood/Downloads/zara.csv'
+df = pd.read_csv(file_path, sep=';')
+
+# Streamlit title
+st.title("🛍️ ZARA Sales Analysis Dashboard")
+
+# --- Sidebar Filters ---
+st.sidebar.header("Filter Options")
+
+# Dropdown for section filter
+section_options = ["All"] + sorted(df["section"].unique().tolist())
+selected_section = st.sidebar.selectbox("Select Section", section_options)
+
+# Slider for minimum sales filter
+min_sales = int(df["Sales Volume"].min())
+max_sales = int(df["Sales Volume"].max())
+sales_threshold = st.sidebar.slider("Minimum Sales Volume", min_sales, max_sales, min_sales)
+
+# Apply filters
+filtered_df = df.copy()
+if selected_section != "All":
+    filtered_df = filtered_df[filtered_df["section"] == selected_section]
+filtered_df = filtered_df[filtered_df["Sales Volume"] >= sales_threshold]
+
+# --- Bar Chart: Total Sales of Man vs Woman ---
+st.subheader("Total Sales Comparison: Man vs Woman")
+
+# Group by section and sum the sales
+sales_by_section = filtered_df.groupby("section")["Sales Volume"].sum().reset_index()
+
+# Plot
+fig, ax = plt.subplots()
+bars = ax.bar(sales_by_section["section"], sales_by_section["Sales Volume"], color=["#DBD8AE", "#673C04"])
+ax.set_xlabel("Section")
+ax.set_ylabel("Total Sales Volume")
+
+# Add value labels on top of bars
+for bar in bars:
+    yval = bar.get_height()
+    ax.text(bar.get_x() + bar.get_width()/2, yval, f"{yval:,.0f}", ha='center', va='bottom')
+
+st.pyplot(fig)
+
+# Display data table
+st.write("### Sales Summary by Section")
+st.dataframe(sales_by_section)
+
+
+# --- Pie Chart: Total Sales by Product Type (Terms) ---
+st.subheader("Total Sales by Product Type")
+
+# Group by product type
+sales_by_terms = filtered_df.groupby("terms")["Sales Volume"].sum().reset_index().sort_values("Sales Volume", ascending=False)
+
+# Plot
+fig2, ax2 = plt.subplots()
+colors = ["#EAF4D3", "#DBD8AE", "#CA907E", "#994636", "#895B1E", "#673C04"]
+ax2.pie(
+    sales_by_terms["Sales Volume"],
+    labels=sales_by_terms["terms"],
+    autopct="%1.1f%%",
+    startangle=90,
+    colors=colors
+)
+ax2.axis("equal")  # Equal aspect ratio for a perfect circle
+
+st.pyplot(fig2)
+
+# Display data table
+st.write("### Sales Summary by Product Type")
+st.dataframe(sales_by_terms)
+
+# --- Footer ---
+st.markdown("---")
+st.caption("Developed by Najwa Mahmood | Bachelor of Computer Science")
