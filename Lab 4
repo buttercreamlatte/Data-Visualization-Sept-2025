@@ -19,7 +19,7 @@ df = pd.DataFrame(data)
 st.title("🌸 Lifestyle & Happiness Data Exploration")
 
 st.write("""
-This dashboard explores how sleep, exercise, and occupation** affect overall happiness and income levels. 
+This dashboard explores how sleep, exercise, and occupation affect overall happiness and income levels. 
 """)
 
 # Scatter plot
