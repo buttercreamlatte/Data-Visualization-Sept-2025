@@ -1,0 +1,213 @@
+import streamlit as st
+import pandas as pd
+import altair as alt
+
+# Altair Theme
+alt.themes.enable('none')
+alt.renderers.set_embed_options(actions=False)
+alt.themes.register('transparent_black_font', lambda: {
+    'config': {
+        'view': {'fill': 'transparent'},
+        'background': 'transparent',
+        'axis': {'labelColor': 'black', 'titleColor': 'black', 'domainColor': 'black', 'gridColor': '#d3d3d3'},
+        'legend': {'labelColor': 'black', 'titleColor': 'black'},
+        'title': {'color': 'black'},
+        'header': {'labelColor': 'black', 'titleColor': 'black'}
+    }
+})
+alt.themes.enable('transparent_black_font')
+
+# Page Theme
+st.set_page_config(page_title="Loan & Credit Card Payment Simulator", layout="wide")
+st.markdown("""
+    <style>
+        [data-testid="stAppViewContainer"] { background-color: #f8fafc; }
+        [data-testid="stHeader"] { background-color: #1e3a8a; color: white; }
+        h1, h2, h3, h4, h5 { color: #1e3a8a; }
+        .metric-card {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            height: 180px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Title & Description
+st.title("Exploring Loan & Credit Card Outcomes Using Linked Views in Streamlit")
+st.markdown("This simulator illustrates how different payment behaviours influence interest, repayment duration and overall loan cost under various strategies.")
+
+# Sidebar Inputs
+st.sidebar.header("Set Your Loan Parameters")
+scenario_options = {
+    "House Mortgage": {"label": "House Price (RM)", "value": 400000, "rate": (2.5, 8.0, 3.5)},
+    "Car Loan": {"label": "Car Price (RM)", "value": 90000, "rate": (3.0, 10.0, 4.5)},
+    "Business Loan": {"label": "Loan (RM)", "value": 150000, "rate": (4.0, 12.0, 6.5)},
+    "Personal Loan": {"label": "Loan (RM)", "value": 30000, "rate": (6.0, 18.0, 9.0)},
+    "Credit Card Payback": {"label": "Credit Card Balance (RM)", "value": 10000, "rate": (10.0, 36.0, 18.0)}
+}
+
+scenario = st.selectbox("Scenario", list(scenario_options.keys()))
+sc = scenario_options[scenario]
+
+principal = st.sidebar.number_input(sc["label"], value=sc["value"])
+user_monthly_payment = st.sidebar.number_input(
+    "Monthly Payment Amount (RM)",
+    min_value=0.0,
+    value=0.0,
+    step=100.0,
+    help="Enter a custom monthly payment. Leave 0 to use calculated payment based on loan term."
+)
+
+# Loan term slider
+loan_term_years = st.sidebar.slider(
+    "Loan Term (Years)" if scenario != "Credit Card Payback" else "Repayment Period (Years)",
+    1, 30 if scenario != "Credit Card Payback" else 10, 10 if scenario != "Credit Card Payback" else 3
+)
+
+interest_rate = st.sidebar.number_input("Annual Interest Rate (%)", *sc["rate"])
+payment_behavior = st.sidebar.radio("Payment Behaviour", ["On-Time", "Early", "Late"])
+
+# Simulation Logic
+months = loan_term_years * 12
+monthly_rate = interest_rate / 12 / 100
+
+monthly_payment = user_monthly_payment if user_monthly_payment > 0 else (
+    principal / months if monthly_rate == 0 else
+    principal * (monthly_rate * (1 + monthly_rate) ** months) / ((1 + monthly_rate) ** months - 1)
+)
+
+if payment_behavior == "Early":
+    monthly_rate *= 0.9
+elif payment_behavior == "Late":
+    monthly_rate *= 1.1
+
+balance = principal
+schedule = []
+max_months = int(loan_term_years * 12 * 1.5)
+
+while balance > 0 and len(schedule) < max_months:
+    interest = round(balance * monthly_rate, 2)
+    principal_paid = round(monthly_payment - interest, 2)
+    balance = round(balance - principal_paid, 2)
+    if balance < 0: principal_paid += balance; balance = 0
+    schedule.append([len(schedule)+1, interest, principal_paid, balance])
+
+schedule_df = pd.DataFrame(schedule, columns=["Month", "Interest Paid", "Principal Paid", "Remaining Balance"]).round(2)
+total_interest = schedule_df["Interest Paid"].sum()
+total_paid = schedule_df["Interest Paid"].sum() + schedule_df["Principal Paid"].sum()
+
+# Summary Cards
+st.subheader("Summary of Results")
+col1, col2, col3, col4 = st.columns(4)
+col1.markdown(f"<div class='metric-card'><h4>Total Paid</h4><h2>RM {total_paid:,.2f}</h2></div>", unsafe_allow_html=True)
+col2.markdown(f"<div class='metric-card'><h4>Total Interest</h4><h2>RM {total_interest:,.2f}</h2></div>", unsafe_allow_html=True)
+col3.markdown(f"<div class='metric-card'><h4>Months to Payoff</h4><h2>{len(schedule_df)}</h2></div>", unsafe_allow_html=True)
+
+if payment_behavior == "Early":
+    savings = principal * monthly_rate * months * 0.2
+    col4.markdown(f"<div class='metric-card'><h4> Interest Saved</h4><h2>RM {savings:,.2f}</h2></div>", unsafe_allow_html=True)
+elif payment_behavior == "Late":
+    extra_cost = total_interest * 0.2
+    col4.markdown(f"<div class='metric-card'><h4> Additional Interest</h4><h2>RM {extra_cost:,.2f}</h2></div>", unsafe_allow_html=True)
+else:
+    col4.markdown(f"<div class='metric-card'><h4>Payment Status</h4><h2>On-time</h2></div>", unsafe_allow_html=True)
+
+# Payment Schedule Chart
+st.subheader("Payment Schedule Over Time")
+st.markdown("Line chart showing monthly breakdown of payments and remaining balance.")
+melted_df = schedule_df.melt(id_vars="Month", value_vars=["Interest Paid","Principal Paid","Remaining Balance"],
+                             var_name="Type", value_name="Amount")
+line_chart = alt.Chart(melted_df).mark_line(point=True).encode(
+    x="Month:Q",
+    y="Amount:Q",
+    color=alt.Color("Type:N", scale=alt.Scale(scheme="tableau10")),
+    tooltip=["Month", "Type", alt.Tooltip("Amount:Q", format=",.2f")]
+)
+st.altair_chart(line_chart, use_container_width=True)
+
+# Detailed Table & CSV
+with st.expander("View Detailed Payment Table"):
+    st.dataframe(schedule_df.style.format("{:,.2f}"))
+csv = schedule_df.to_csv(index=False).encode('utf-8')
+st.download_button("Download Payment Schedule as CSV", data=csv, file_name=f"{scenario.lower().replace(' ','_')}_schedule.csv", mime='text/csv')
+
+# Payment Breakdown Pie
+st.subheader("Total Payment Breakdown")
+st.markdown("Pie chart illustrating the proportion of principal versus interest paid.")
+breakdown_df = pd.DataFrame({'Component':['Principal Paid','Total Interest'], 'Amount':[principal,total_interest]})
+breakdown_df['Percentage'] = breakdown_df['Amount']/breakdown_df['Amount'].sum()*100
+
+breakdown_chart = alt.Chart(breakdown_df).mark_arc(outerRadius=130, innerRadius=60).encode(
+    theta="Amount:Q",
+    color=alt.Color("Component:N", scale=alt.Scale(domain=['Principal Paid','Total Interest'], range=['#2563eb','#ef4444'])),
+    tooltip=[alt.Tooltip('Component:N'), alt.Tooltip('Amount:Q', format=',.2f'), alt.Tooltip('Percentage:Q', format='.1f')]
+)
+shadow_text = alt.Chart(breakdown_df).mark_text(radius=85, color='black', fontSize=20, fontWeight='bold', dx=1, dy=1).encode(
+    theta="Amount:Q", text=alt.Text('Percentage:Q', format='.1f'))
+text = alt.Chart(breakdown_df).mark_text(radius=85, color='white', fontSize=20, fontWeight='bold').encode(
+    theta="Amount:Q", text=alt.Text('Percentage:Q', format='.1f'))
+st.altair_chart(breakdown_chart+shadow_text+text, use_container_width=True)
+
+# Interest Comparison
+st.subheader("Total Interest Comparison by Payment Strategy")
+st.markdown("Comparison of total interest paid under different payment behaviours.")
+strategies = ["Early","On-Time","Late"]
+interest_list = []
+for strat in strategies:
+    temp_payment = monthly_payment * (1.25 if strat=="Early" else 0.75 if strat=="Late" else 1)
+    temp_balance, temp_interest = principal, 0
+    while temp_balance>0:
+        interest = temp_balance*monthly_rate
+        principal_paid = temp_payment-interest
+        temp_balance -= principal_paid
+        if temp_balance<0: principal_paid+=temp_balance; temp_balance=0
+        temp_interest += interest
+    interest_list.append(round(temp_interest,2))
+interest_df = pd.DataFrame({"Payment Strategy":strategies,"Total Interest Paid":interest_list})
+interest_line = alt.Chart(interest_df).mark_line(point=True).encode(
+    x=alt.X('Payment Strategy:N', axis=alt.Axis(labelAngle=0)), y='Total Interest Paid:Q', color='Payment Strategy:N',
+    tooltip=['Payment Strategy','Total Interest Paid']
+)
+interest_text = interest_line.mark_text(align='center',baseline='bottom',dy=-10).encode(text=alt.Text('Total Interest Paid:Q', format=',.2f'))
+st.altair_chart(interest_line+interest_text, use_container_width=True)
+
+# Profit or Loss
+st.subheader("Profit or Loss View")
+st.markdown("Bar chart showing total payment versus original loan to highlight profit or loss.")
+pl_df = pd.DataFrame({'Category':['Original Loan','Total Repaid','Profit/Loss'], 'Amount':[principal,total_paid,total_paid-principal]})
+pl_chart = alt.Chart(pl_df).mark_bar(cornerRadiusTopLeft=10,cornerRadiusTopRight=10).encode(
+    x=alt.X('Category:N',axis=alt.Axis(labelAngle=0)), y='Amount:Q',
+    color='Category:N', tooltip=['Category','Amount']
+)
+pl_text = pl_chart.mark_text(align='center',baseline='bottom',dy=-5,color='black').encode(text=alt.Text('Amount:Q', format=',.2f'))
+st.altair_chart(pl_chart+pl_text, use_container_width=True)
+
+# Scenario Comparison
+st.subheader("Scenario Comparison")
+st.markdown("Compare interest outcomes across two selected payment behaviours.")
+
+compare = st.checkbox("Show Comparison Chart")
+
+if compare:
+    st.markdown("Select two payment behaviours to compare their interest outcomes.")
+    options = ["Early", "On-Time", "Late"]
+    scenario_1 = st.selectbox("Payment Behaviour 1", options, key="s1")
+    scenario_2 = st.selectbox("Payment Behaviour 2", options, key="s2")
+
+    comp_df = interest_df[interest_df["Payment Strategy"].isin([scenario_1, scenario_2])]
+    comp_chart = alt.Chart(comp_df).mark_bar(cornerRadiusTopLeft=10, cornerRadiusTopRight=10).encode(
+        x=alt.X("Payment Strategy:N", title="Payment Strategy", axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("Total Interest Paid:Q", title="Total Interest Paid (RM)"),
+        color="Payment Strategy:N",
+        tooltip=["Payment Strategy", "Total Interest Paid"]
+    ).properties(height=400)
+    st.altair_chart(comp_chart, use_container_width=True)
+
+# Key Insights
+st.subheader("Key Insights")
+if "Early" in payment_behavior: st.success("Making early payments reduces total interest and shortens the repayment period.")
+elif "Late" in payment_behavior: st.warning("Late payments increase total interest and extend the repayment duration.")
+else: st.info("On-time payments maintain a balanced cost and repayment schedule.")
