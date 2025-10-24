@@ -1,0 +1,187 @@
+import streamlit as st
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import altair as alt
+import plotly.express as px
+from pandas.plotting import parallel_coordinates
+import numpy as np
+import time
+
+# Load dataset
+df = pd.read_csv("diamonds.csv")
+
+st.title("💎 Exploring Diamonds: Advanced Data Visualisations")
+
+# Sidebar: choose between static or interactive
+mode = st.sidebar.selectbox("Choose mode", ["Static Visualisations", "Interactive Dashboard"])
+
+if mode == "Static Visualisations":
+    st.header("Static Visualisations")
+
+    # Example 1: Mosaic Plot
+    with st.expander("Mosaic Plot"):
+        st.write(
+            "This **Mosaic Plot** visualises the total price contribution of diamonds by their **cut** and **color**.")
+        fig_mekko = px.histogram(
+            df,
+            x="cut",
+            y="price",
+            color="color",
+            barmode="stack",
+            histfunc="sum",
+            height=400
+        )
+        fig_mekko.update_layout(yaxis_title="Total Price", xaxis_title="Diamond Cut")
+        st.plotly_chart(fig_mekko)
+
+    # Example 2: Trellis Display
+    with st.expander("Trellis Display"):
+        st.write(
+            "This **Trellis Display** shows how diamond **price** varies with **carat** across different **cut** categories, faceted by **color**.")
+        trellis_chart = alt.Chart(df).mark_circle().encode(
+            x='carat:Q',
+            y='price:Q',
+            color='cut:N'
+        ).facet(
+            facet='color:N',
+            columns=4
+        )
+        st.altair_chart(trellis_chart, use_container_width=True)
+
+    # Example 3: Heatmap
+    with st.expander("Heatmap"):
+        st.write(
+            "This **Heatmap** shows correlations between numeric diamond features like **carat**, **depth**, **table**, **price**.")
+        corr = df[['carat', 'depth', 'table', 'price', 'x', 'y', 'z']].corr()
+        fig, ax = plt.subplots()
+        sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+        st.pyplot(fig)
+
+    # Example 4: Multivariate Scatter Plot
+    with st.expander("Multivariate Scatter Plot"):
+        st.write(
+            "This **Multivariate Scatter Plot** explores relationships between **carat** and **price**, using **cut**, **depth**, and **clarity** for color, size, and symbol.")
+        scatter_plot = px.scatter(
+            df,
+            x='carat',
+            y='price',
+            color='cut',
+            size='depth',
+            symbol='clarity',
+            hover_data=['color', 'table']
+        )
+        st.plotly_chart(scatter_plot, use_container_width=True)
+
+    # Example 5: Parallel Coordinate Plot
+    with st.expander("Parallel Coordinate Plot"):
+        st.write(
+            "This **Parallel Coordinate Plot** visualises multiple numeric diamond attributes across different **cut** categories.")
+        df_parallel = df[['carat', 'depth', 'table', 'price', 'cut']].copy()
+        df_parallel['cut'] = pd.Categorical(df_parallel['cut']).codes
+        fig, ax = plt.subplots(figsize=(8, 6))
+        parallel_coordinates(df_parallel, 'cut', color=('#FF6B6B', '#4ECDC4', '#556270'))
+        st.pyplot(fig)
+
+    # Example 6: 3D Scatter Plot
+    with st.expander("3D Scatter Plot"):
+        st.write(
+            "This **3D Scatter Plot** visualises diamonds in **carat**, **price**, and **depth**, using **cut** for color and **clarity** for symbol.")
+        fig_3d = px.scatter_3d(
+            df,
+            x='carat',
+            y='price',
+            z='depth',
+            color='cut',
+            symbol='clarity',
+            height=600
+        )
+        st.plotly_chart(fig_3d)
+
+    # Example 7: Box Plot
+    with st.expander("Box Plot"):
+        st.write("This **Box Plot** compares the distribution of diamond **prices** across different **cuts**.")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.boxplot(x='cut', y='price', data=df, palette="Set2", ax=ax)
+        ax.set_title("Box Plot of Diamond Prices by Cut")
+        st.pyplot(fig)
+
+    # Example 8: Violin Plot
+    with st.expander("Violin Plot"):
+        st.write("This **Violin Plot** shows distribution of diamond **prices** across **cuts**, split by **color**.")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.violinplot(x='cut', y='price', hue='color', data=df, split=True, palette="Pastel1", ax=ax)
+        ax.set_title("Violin Plot of Diamond Prices by Cut and Color")
+        st.pyplot(fig)
+
+elif mode == "Interactive Dashboard":
+    st.header("Interactive Dashboard")
+
+    # Filters
+    selected_cuts = st.multiselect("Select Cut(s)", options=df['cut'].unique(), default=df['cut'].unique())
+    selected_colors = st.multiselect("Select Color(s)", options=df['color'].unique(), default=df['color'].unique())
+    carat_range = st.slider("Select Carat Range", float(df['carat'].min()), float(df['carat'].max()),
+                            (float(df['carat'].min()), float(df['carat'].max())))
+    price_range = st.slider("Select Price Range", int(df['price'].min()), int(df['price'].max()),
+                            (int(df['price'].min()), int(df['price'].max())))
+
+    # Filter the dataset
+    df_dash = df[
+        (df['cut'].isin(selected_cuts)) &
+        (df['color'].isin(selected_colors)) &
+        (df['carat'] >= carat_range[0]) &
+        (df['carat'] <= carat_range[1]) &
+        (df['price'] >= price_range[0]) &
+        (df['price'] <= price_range[1])
+        ]
+
+    st.write(f"Displaying **{len(df_dash)} diamonds** after filtering.")
+
+    # Dynamic Scatter Plot
+    scatter_dash = px.scatter(
+        df_dash,
+        x='carat',
+        y='price',
+        color='cut',
+        symbol='clarity',
+        hover_data=['color', 'table'],
+        title="Filtered Diamonds: Carat vs Price"
+    )
+    st.plotly_chart(scatter_dash, use_container_width=True)
+
+    # Box Plot
+    fig_box_dash, ax_box_dash = plt.subplots(figsize=(8, 5))
+    sns.boxplot(x='cut', y='price', data=df_dash, palette="Set2", ax=ax_box_dash)
+    ax_box_dash.set_title("Filtered Box Plot: Price by Cut")
+    st.pyplot(fig_box_dash)
+
+    # Violin Plot
+    fig_violin_dash, ax_violin_dash = plt.subplots(figsize=(8, 5))
+    sns.violinplot(x='cut', y='price', hue='color', data=df_dash, split=True, palette="Pastel1", ax=ax_violin_dash)
+    ax_violin_dash.set_title("Filtered Violin Plot: Price by Cut and Color")
+    st.pyplot(fig_violin_dash)
+
+    # Animated Grand Tour
+    st.subheader("Animated Grand Tour")
+    st.write("Rotates a 3D projection of numeric dimensions: carat, depth, table, x, y, z, and price.")
+    numeric_cols = ['carat', 'depth', 'table', 'x', 'y', 'z', 'price']
+    df_num = df_dash[numeric_cols]
+
+    grand_tour_placeholder = st.empty()
+    angles = np.linspace(0, 2 * np.pi, 50)
+    for angle in angles:
+        x_rot = df_num['carat'] * np.cos(angle) + df_num['depth'] * np.sin(angle)
+        y_rot = df_num['price']
+        z_rot = df_num['table'] * np.sin(angle) + df_num['x'] * np.cos(angle)
+
+        fig_tour = px.scatter_3d(
+            df_dash,
+            x=x_rot,
+            y=y_rot,
+            z=z_rot,
+            color='cut',
+            symbol='clarity',
+            height=600
+        )
+        grand_tour_placeholder.plotly_chart(fig_tour)
+        time.sleep(0.1)
