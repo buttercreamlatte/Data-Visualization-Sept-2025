@@ -6,7 +6,7 @@ from streamlit_folium import folium_static, st_folium
 from folium.plugins import HeatMap
 import geopandas as gpd
 
-# Chloropeth Map
+# Choropleth Map
 def generate_population_data_folder1():
     states = [
         "Johor", "Kedah", "Kelantan", "Melaka", "Negeri Sembilan",
@@ -91,37 +91,66 @@ def plot_heatmap(pop_data):
 
 # Sidebar Menu
 def main():
-    st.sidebar.title("Select Visualisation")
-    menu = st.sidebar.radio(
-        "Choose a map:",
+    st.sidebar.title("Map Controls")
+    st.sidebar.write("Select the map type and options below:")
+
+    # Map Type Selection
+    map_type = st.sidebar.radio(
+        "Select Map Type:",
         ["Choropleth Map", "Circle Marker Map", "Heatmap"]
     )
 
-    if menu == "Choropleth Map":
+    # Show Population Data Table
+    show_table = st.sidebar.checkbox("Show Population Data Table")
+
+    # Descriptions for each visualization
+    if map_type == "Choropleth Map":
         st.title("🇲🇾 Malaysia Population — Choropleth Map")
+        st.write("### Choropleth Map Description")
+        st.write(
+            "A **Choropleth Map** visualizes the population distribution across Malaysia using color gradients. "
+            "Each state is colored based on its population, making it easy to compare the population sizes between states."
+        )
+    elif map_type == "Circle Marker Map":
+        st.title("🇲🇾 Malaysia Population — Circle Marker Map")
+        st.write("### Circle Marker Map Description")
+        st.write(
+            "The **Circle Marker Map** represents each state with a circle whose size is proportional to the state's population. "
+            "The larger the circle, the higher the population. This gives a visual representation of population density across Malaysia."
+        )
+    else:
+        st.title("🇲🇾 Malaysia Population — Heatmap")
+        st.write("### Heatmap Description")
+        st.write(
+            "The **Heatmap** represents population density across Malaysia using color intensity. "
+            "Regions with higher populations are shown with more intense colors, helping to identify population hotspots."
+        )
+
+    # Logic for the main map
+    if map_type == "Choropleth Map":
         population_data = generate_population_data_folder1()
         malaysia_map = load_map()
         folium_map = plot_map(malaysia_map, population_data)
         folium_static(folium_map)
-        st.write("Population Data by State")
-        st.dataframe(population_data)
+        if show_table:
+            st.write("Population Data by State")
+            st.dataframe(population_data)
 
-    elif menu == "Circle Marker Map":
-        st.title("🇲🇾 Malaysia Population — Circle Marker Map")
+    elif map_type == "Circle Marker Map":
         population_data = generate_population_data_folder2()
         folium_map = plot_circle_map(population_data)
         st_folium(folium_map)
-        st.write("Population Data by State")
-        st.dataframe(population_data)
+        if show_table:
+            st.write("Population Data by State")
+            st.dataframe(population_data)
 
     else:
-        st.title("🇲🇾 Malaysia Population — Heatmap")
         population_data = generate_population_data_folder3()
         folium_map = plot_heatmap(population_data)
         st_folium(folium_map)
-        st.write("Population Data by State")
-        st.dataframe(population_data)
-
+        if show_table:
+            st.write("Population Data by State")
+            st.dataframe(population_data)
 
 if __name__ == "__main__":
     main()
